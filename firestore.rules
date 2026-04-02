@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tasks
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - title: string (required)
+    //   - priority: int (1-5)
+    //   - energyLevel: int (1-5)
+    //   - durationMin: int
+    //   - status: string (pending, in_progress, completed, skipped)
+    //   - category: string
+    //   - createdAt: timestamp
+    //   - uiProperties: map
+    //
+    // Collection: analytics
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - date: string (YYYY-MM-DD)
+    //   - tasksCompleted: int
+    //   - totalEnergyExpended: int
+    //   - focusScore: int
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidTask(data) {
+      return data.userId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.priority is int && data.priority >= 1 && data.priority <= 5 &&
+             data.energyLevel is int && data.energyLevel >= 1 && data.energyLevel <= 5 &&
+             data.durationMin is int &&
+             data.status in ['pending', 'in_progress', 'completed', 'skipped'];
+    }
+
+    function isValidAnalytics(data) {
+      return data.userId is string &&
+             data.date is string && data.date.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidTask(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidTask(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && isDocOwner();
+    }
+
+    match /analytics/{analyticsId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid && isValidAnalytics(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidAnalytics(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && isDocOwner();
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

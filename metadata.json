@@ -1,0 +1,7 @@
+{
+  "name": "Chronos Flow",
+  "description": "A smart, interactive daily task organizer that uses AI to optimize your schedule based on energy levels and provides deep productivity insights.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
